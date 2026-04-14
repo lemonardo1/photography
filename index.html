@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Photography</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" as="style" onload="this.onload=null;this.rel='stylesheet'"
+    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-bg" id="heroBg"></div>
+    <div class="hero-overlay"></div>
+    <p class="hero-sub">Photography by Daeseong Kim</p>
+    <div class="scroll-hint">
+      <span>Scroll</span>
+      <div class="scroll-line"></div>
+    </div>
+  </section>
+
+  <!-- Gallery -->
+  <main class="gallery-wrap">
+    <div class="gallery" id="gallery">
+      <!-- Photos injected by JS -->
+    </div>
+  </main>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" aria-hidden="true">
+    <button class="lb-close" id="lbClose" aria-label="닫기">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+    <div class="lb-img-wrap">
+      <img class="lb-img" id="lbImg" src="" alt="">
+      <div class="lb-spinner" id="lbSpinner"></div>
+    </div>
+    <div class="lb-palette" id="lbPalette" aria-label="색상 팔레트"></div>
+    <div class="lb-meta" id="lbMeta">
+      <span class="lb-title" id="lbTitle"></span>
+      <span class="lb-info" id="lbInfo"></span>
+      <span class="lb-counter" id="lbCounter"></span>
+    </div>
+  </div>
+  <div class="lb-backdrop" id="lbBackdrop"></div>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <p>© 2026 <a href="https://www.lemonaa.com" target="_blank" rel="noopener" class="footer-link">Daeseong Kim</a> &nbsp;·&nbsp; All rights reserved</p>
+  </footer>
+
+  <script src="js/photos.js"></script>
+  <script src="js/colorpicker.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

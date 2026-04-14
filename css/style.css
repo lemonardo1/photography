@@ -1,0 +1,541 @@
+/* ============================================================
+   Base & Reset
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0c0c0c;
+  --bg2: #111111;
+  --surface: #181818;
+  --border: rgba(255,255,255,0.07);
+  --text: #f0f0f0;
+  --text-dim: #888;
+  --text-muted: #555;
+  --accent: #e8e8e8;
+  --accent-hover: #ffffff;
+  --dot: #c8a96e;
+
+  --font: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --gap: clamp(8px, 1.2vw, 16px);
+  --col: clamp(240px, 30vw, 420px);
+  --radius: 4px;
+  --trans: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+img { display: block; max-width: 100%; }
+button { cursor: pointer; border: none; background: none; color: inherit; font-family: inherit; }
+a { text-decoration: none; color: inherit; }
+
+/* ============================================================
+   Header / Nav
+   ============================================================ */
+.site-header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: 0 clamp(20px, 5vw, 60px);
+  height: 64px;
+  display: flex;
+  align-items: center;
+  background: linear-gradient(to bottom, rgba(12,12,12,0.95) 0%, rgba(12,12,12,0) 100%);
+  backdrop-filter: blur(0px);
+  transition: background var(--trans), backdrop-filter var(--trans);
+}
+
+.site-header.scrolled {
+  background: rgba(12,12,12,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.nav-logo {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.nav-logo .dot { color: var(--dot); }
+
+.nav-filters {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.filter-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  border-radius: 20px;
+  transition: color var(--trans), background var(--trans);
+}
+
+.filter-btn:hover {
+  color: var(--text-dim);
+  background: rgba(255,255,255,0.05);
+}
+
+.filter-btn.active {
+  color: var(--text);
+  background: rgba(255,255,255,0.1);
+}
+
+.nav-right {
+  white-space: nowrap;
+}
+
+.photo-count {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+/* ============================================================
+   Hero
+   ============================================================ */
+.hero {
+  height: 100vh;
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 clamp(24px, 8vw, 120px);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 배경 사진 */
+.hero-bg {
+  position: absolute;
+  inset: -6%;          /* Ken Burns 여백 */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  animation: kenBurns 18s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes kenBurns {
+  0%   { transform: scale(1)    translate(0,    0);    }
+  100% { transform: scale(1.08) translate(-1.5%, 1%); }
+}
+
+/* 오버레이: 아래로 갈수록 배경색과 자연스럽게 연결 */
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.55) 60%, var(--bg) 100%);
+  pointer-events: none;
+}
+
+
+.hero-sub {
+  position: absolute;
+  top: clamp(28px, 4vw, 48px);
+  left: clamp(24px, 8vw, 120px);
+  z-index: 1;
+  font-size: clamp(11px, 1.2vw, 13px);
+  font-weight: 400;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.scroll-hint {
+  position: absolute;
+  bottom: 48px;
+  left: clamp(24px, 8vw, 120px);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 1;
+  color: rgba(255,255,255,0.4);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.scroll-line {
+  width: 40px;
+  height: 1px;
+  background: var(--text-muted);
+  transform-origin: left;
+  animation: scrollPulse 2s ease-in-out infinite;
+}
+
+@keyframes scrollPulse {
+  0%, 100% { transform: scaleX(1); opacity: 0.4; }
+  50% { transform: scaleX(1.4); opacity: 1; }
+}
+
+/* ============================================================
+   Gallery
+   ============================================================ */
+.gallery-wrap {
+  padding: 0 clamp(16px, 3vw, 40px) 80px;
+}
+
+.gallery {
+  columns: var(--col) auto;
+  column-gap: var(--gap);
+}
+
+.gallery-item {
+  break-inside: avoid;
+  margin-bottom: var(--gap);
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.gallery-item.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.gallery-item.hidden {
+  display: none;
+}
+
+.gallery-item img {
+  width: 100%;
+  height: auto;
+  display: block;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.gallery-item:hover img {
+  transform: scale(1.04);
+}
+
+.gallery-item-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity var(--trans);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 20px 16px 16px;
+  pointer-events: none;
+}
+
+.gallery-item:hover .gallery-item-overlay {
+  opacity: 1;
+}
+
+.item-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #fff;
+  line-height: 1.3;
+}
+
+.item-meta {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.6);
+  letter-spacing: 0.04em;
+}
+
+/* Skeleton loader */
+.gallery-item.skeleton {
+  aspect-ratio: 4/3;
+  cursor: default;
+}
+.gallery-item.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--surface) 0%, rgba(255,255,255,0.05) 50%, var(--surface) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============================================================
+   Lightbox
+   ============================================================ */
+.lb-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.96);
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 201;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.lb-backdrop.open,
+.lightbox.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.lb-img-wrap {
+  position: relative;
+  max-width: min(90vw, 1200px);
+  max-height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lb-img {
+  max-width: min(90vw, 1200px);
+  max-height: 80vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  user-select: none;
+}
+
+.lb-img.loaded { opacity: 1; }
+
+.lb-spinner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(255,255,255,0.1);
+  border-top-color: var(--dot);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.lb-spinner.hidden { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Color Palette ─────────────────────────────────────────── */
+.lb-palette {
+  position: fixed;
+  right: clamp(24px, 5vw, 60px);
+  top: 50%;
+  transform: translateY(-50%) translateX(4px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s;
+  pointer-events: none;
+}
+
+.lb-palette.ready {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+  pointer-events: all;
+}
+
+.palette-swatch {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.palette-swatch-color {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.12);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              border-color 0.2s ease,
+              box-shadow 0.2s ease;
+  flex-shrink: 0;
+}
+
+.palette-swatch:hover .palette-swatch-color {
+  transform: scale(1.3) translateX(-3px);
+  border-color: rgba(255,255,255,0.35);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+
+.palette-swatch-hex {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) translateX(4px);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+}
+
+.palette-swatch:hover .palette-swatch-hex {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* 복사 완료 피드백 */
+.palette-swatch-color.copied {
+  animation: swatchPop 0.35s ease;
+}
+@keyframes swatchPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+/* 팔레트 로딩 스켈레톤 */
+.palette-swatch-color.loading {
+  background: rgba(255,255,255,0.06) !important;
+  animation: palettePulse 1.2s ease-in-out infinite;
+}
+@keyframes palettePulse {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 0.8; }
+}
+
+/* ── Meta bar ─────────────────────────────────────────────── */
+.lb-meta {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px clamp(24px, 5vw, 60px);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+}
+
+.lb-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+
+.lb-info {
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+}
+
+.lb-counter {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+}
+
+.lb-close {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  border-radius: 50%;
+  transition: color var(--trans), background var(--trans);
+}
+.lb-close:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.08);
+}
+
+
+/* ============================================================
+   Footer
+   ============================================================ */
+.site-footer {
+  padding: 32px clamp(24px, 5vw, 60px);
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.footer-link {
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: color var(--trans);
+}
+.footer-link:hover { color: var(--text); }
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 640px) {
+  .nav-filters { display: none; }
+  .mobile-filters {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 12px clamp(16px, 4vw, 24px);
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mobile-filters::-webkit-scrollbar { display: none; }
+}
+
+/* ============================================================
+   Utility
+   ============================================================ */
+::selection { background: var(--dot); color: #000; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
