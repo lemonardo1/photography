@@ -5,6 +5,9 @@
   let currentFilter = 'all';
   let lightboxIndex = -1;
   let filteredPhotos = [];
+  let activeDots     = [];
+  let currentColors  = [];
+  let currentSwatches = [];
 
   /* ── DOM refs ───────────────────────────────────────────── */
   const gallery     = document.getElementById('gallery');
@@ -147,6 +150,8 @@
     document.body.style.overflow = '';
     lbImg.classList.remove('loaded');
     lbPalette.classList.remove('ready');
+    lbPalette.querySelectorAll('.palette-swatch').forEach(s => s.classList.remove('active'));
+    clearActiveDots();
     lightboxIndex = -1;
   }
 
@@ -161,36 +166,205 @@
     ).join('');
   }
 
+  function clearActiveDots() {
+    activeDots.forEach(dot => dot.remove());
+    activeDots = [];
+  }
+
+  // 팔레트 위치 → 이미지 원래 위치 → 팔레트 위치 왕복 애니메이션
+  function animatePaletteRoundTrip() {
+    clearActiveDots();
+
+    const imgRect       = lbImg.getBoundingClientRect();
+    const INITIAL_DELAY = 260;   // 클릭 후 첫 dot 등장까지 여유
+    const STAGGER       = 140;   // dot 간 출발 편차
+    const PAUSE_AT_IMG  = 720;   // 이미지 도착 후 대기 시간
+    const FLY_DUR       = 580;   // 비행 시간 (ms)
+
+    currentSwatches.forEach((sw, i) => {
+      const colorEl = sw.querySelector('.palette-swatch-color');
+      const srcRect = colorEl.getBoundingClientRect();
+
+      // dot을 팔레트 스워치 위치에서 1px 점으로 생성
+      const dot = document.createElement('div');
+      dot.className        = 'color-origin-dot';
+      dot.style.background = currentColors[i].hex;
+      dot.style.left       = (srcRect.left + srcRect.width  / 2) + 'px';
+      dot.style.top        = (srcRect.top  + srcRect.height / 2) + 'px';
+      dot.style.transform  = 'translate(-50%, -50%) scale(0.04)';
+      document.body.appendChild(dot);
+      activeDots.push(dot);
+
+      const [nx, ny] = currentColors[i].pos;
+      const imageX   = imgRect.left + nx * imgRect.width;
+      const imageY   = imgRect.top  + ny * imgRect.height;
+
+      const GROW_DUR_RT = 400;  // 1px → 원형 성장 시간
+      const flyS        = (FLY_DUR / 1000).toFixed(2) + 's';
+      const T_APPEAR    = INITIAL_DELAY + i * STAGGER;
+      const T_FLY_OUT   = T_APPEAR + GROW_DUR_RT + 80;         // 성장 완료 후 80ms 여유
+      const T_FLY_BACK  = T_FLY_OUT + FLY_DUR + PAUSE_AT_IMG;  // 이미지 → 팔레트
+      const T_ARRIVE    = T_FLY_BACK + FLY_DUR + 20;
+
+      // 1) 팔레트 위치에서 1px → 원형으로 성장
+      setTimeout(() => {
+        dot.style.transition = `transform ${(GROW_DUR_RT / 1000).toFixed(2)}s cubic-bezier(0.34, 1.56, 0.64, 1)`;
+        dot.style.transform  = 'translate(-50%, -50%) scale(1)';
+      }, T_APPEAR);
+
+      // 2) 이미지 내 원래 위치로 날아가기
+      setTimeout(() => {
+        dot.style.transition = [
+          `left ${flyS} cubic-bezier(0.4, 0, 0.2, 1)`,
+          `top  ${flyS} cubic-bezier(0.4, 0, 0.2, 1)`,
+        ].join(', ');
+        dot.style.left = imageX + 'px';
+        dot.style.top  = imageY + 'px';
+      }, T_FLY_OUT);
+
+      // 3) 다시 팔레트 위치로 돌아오기
+      setTimeout(() => {
+        const destRect = colorEl.getBoundingClientRect();
+        dot.style.transition = [
+          `left      ${flyS} cubic-bezier(0.4, 0, 0.2, 1)`,
+          `top       ${flyS} cubic-bezier(0.4, 0, 0.2, 1)`,
+          `transform ${flyS} ease`,
+          'opacity   0.28s ease 0.32s',
+        ].join(', ');
+        dot.style.left      = (destRect.left + destRect.width  / 2) + 'px';
+        dot.style.top       = (destRect.top  + destRect.height / 2) + 'px';
+        dot.style.transform = 'translate(-50%, -50%) scale(0.5)';
+        dot.style.opacity   = '0';
+      }, T_FLY_BACK);
+
+      // 4) 도착 — dot 제거 + 스워치 bounce
+      setTimeout(() => {
+        dot.remove();
+        activeDots = activeDots.filter(d => d !== dot);
+
+        colorEl.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        colorEl.style.transform  = 'scale(1.35)';
+        setTimeout(() => {
+          colorEl.style.transform = '';
+          setTimeout(() => { colorEl.style.transition = ''; }, 300);
+        }, 40);
+      }, T_ARRIVE);
+    });
+  }
+
+
   function renderPalette(img) {
     const colors = ColorPicker.extract(img, 5);
     if (!colors.length) { lbPalette.innerHTML = ''; return; }
 
-    lbPalette.innerHTML = colors.map(({ hex, lum }) => {
-      const textColor = lum > 0.55 ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.7)';
-      return `<div class="palette-swatch" data-hex="${hex}" title="클릭해서 복사">
+    // 모듈 스코프에 저장 (왕복 애니메이션에서 참조)
+    currentColors  = colors;
+
+    // 스워치 빌드 — 개별적으로 숨긴 상태로 시작 (도트가 날아와 하나씩 드러냄)
+    lbPalette.innerHTML = colors.map(({ hex }) =>
+      `<div class="palette-swatch" data-hex="${hex}" title="색상 정보" style="opacity:0;pointer-events:none">
         <div class="palette-swatch-color" style="background:${hex};"></div>
         <span class="palette-swatch-hex">${hex}</span>
-      </div>`;
-    }).join('');
+      </div>`
+    ).join('');
 
-    // 클릭 → hex 복사
-    lbPalette.querySelectorAll('.palette-swatch').forEach(sw => {
-      sw.addEventListener('click', () => copyHex(sw.dataset.hex, sw.querySelector('.palette-swatch-color')));
+    const swatches = [...lbPalette.querySelectorAll('.palette-swatch')];
+    currentSwatches = swatches;
+
+    // 클릭 핸들러 미리 등록
+    swatches.forEach((sw, i) => {
+      sw.addEventListener('click', () => {
+        const isActive = sw.classList.contains('active');
+        swatches.forEach(s => s.classList.remove('active'));
+        if (!isActive) sw.classList.add('active');
+
+        // 클릭마다 5개 전체 왕복 애니메이션
+        animatePaletteRoundTrip();
+      });
     });
 
-    requestAnimationFrame(() => lbPalette.classList.add('ready'));
-  }
+    // 팔레트 컨테이너 즉시 표시 (개별 스워치는 여전히 opacity:0)
+    lbPalette.classList.add('ready');
 
-  function copyHex(hex, colorEl) {
-    navigator.clipboard.writeText(hex).catch(() => {});
-    colorEl.classList.remove('copied');
-    void colorEl.offsetWidth;
-    colorEl.classList.add('copied');
+    // ── 이미지 → 팔레트 fly-in 애니메이션 ──────────────────
+    const imgRect        = lbImg.getBoundingClientRect();
+    const STAGGER_IN     = 110;  // dot 간 등장 간격
+    const GROW_DUR       = 420;  // 1px → 원형 성장 시간
+    const PAUSE_GROWN    = 180;  // 완전히 커진 뒤 출발 전 여유
+    const FLY_DUR_IN     = 540;  // 팔레트까지 비행 시간
+    const flyInS         = (FLY_DUR_IN / 1000).toFixed(2) + 's';
+
+    colors.forEach((colorObj, i) => {
+      const { hex, pos: [nx, ny] } = colorObj;
+
+      const originX = imgRect.left + nx * imgRect.width;
+      const originY = imgRect.top  + ny * imgRect.height;
+
+      // dot을 1px 점으로 생성 (아직 비가시 크기)
+      const dot = document.createElement('div');
+      dot.className        = 'color-origin-dot';
+      dot.style.background = hex;
+      dot.style.left       = originX + 'px';
+      dot.style.top        = originY + 'px';
+      dot.style.transform  = 'translate(-50%, -50%) scale(0.04)';
+      document.body.appendChild(dot);
+      activeDots.push(dot);
+
+      const T_GROW   = i * STAGGER_IN;
+      const T_FLY    = T_GROW + GROW_DUR + PAUSE_GROWN;
+      const T_ARRIVE = T_FLY  + FLY_DUR_IN + 20;
+
+      // 1단계: 1px → 원형으로 성장
+      setTimeout(() => {
+        dot.style.transition = `transform ${(GROW_DUR / 1000).toFixed(2)}s cubic-bezier(0.34, 1.56, 0.64, 1)`;
+        dot.style.transform  = 'translate(-50%, -50%) scale(1)';
+      }, T_GROW);
+
+      // 2단계: 팔레트 스워치 위치로 날아가기
+      setTimeout(() => {
+        const destRect = swatches[i].querySelector('.palette-swatch-color').getBoundingClientRect();
+        const destX = destRect.left + destRect.width  / 2;
+        const destY = destRect.top  + destRect.height / 2;
+
+        dot.style.transition = [
+          `left      ${flyInS} cubic-bezier(0.4, 0, 0.2, 1)`,
+          `top       ${flyInS} cubic-bezier(0.4, 0, 0.2, 1)`,
+          `transform ${flyInS} ease`,
+          'opacity   0.26s ease 0.3s',
+        ].join(', ');
+        dot.style.left      = destX + 'px';
+        dot.style.top       = destY + 'px';
+        dot.style.transform = 'translate(-50%, -50%) scale(0.55)';
+        dot.style.opacity   = '0';
+      }, T_FLY);
+
+      // 3단계: 도착 — 도트 제거 + 스워치 팝 등장
+      setTimeout(() => {
+        dot.remove();
+        activeDots = activeDots.filter(d => d !== dot);
+
+        const sw = swatches[i];
+        sw.style.transition    = 'opacity 0.15s ease';
+        sw.style.opacity       = '1';
+        sw.style.pointerEvents = '';
+
+        const colorEl = sw.querySelector('.palette-swatch-color');
+        colorEl.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        colorEl.style.transform  = 'scale(1.35)';
+        setTimeout(() => {
+          colorEl.style.transform = '';
+          setTimeout(() => { colorEl.style.transition = ''; }, 300);
+        }, 40);
+      }, T_ARRIVE);
+    });
   }
 
   function loadLightboxImage(globalIndex) {
     const photo = window.PHOTOS[globalIndex];
     if (!photo) return;
+
+    clearActiveDots();
+    lbPalette.querySelectorAll('.palette-swatch').forEach(s => s.classList.remove('active'));
 
     lbImg.classList.remove('loaded');
     lbSpinner.classList.remove('hidden');

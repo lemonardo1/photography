@@ -2,11 +2,13 @@
  * colorpicker.js
  * 이미지에서 Canvas를 통해 픽셀을 샘플링하고
  * k-means++ 클러스터링으로 주요 색상 k개를 추출합니다.
+ * 각 색상의 이미지 내 평균 위치(pos: [nx, ny], 0~1 정규화)도 반환합니다.
  */
 
 const ColorPicker = (() => {
 
   /* ── 픽셀 샘플링 ─────────────────────────────────────────── */
+  // 반환: [[r, g, b, nx, ny], ...] — 마지막 두 원소는 정규화된 픽셀 좌표
   function samplePixels(img, maxDim = 180) {
     const canvas = document.createElement('canvas');
     const scale  = Math.min(1, maxDim / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
@@ -19,6 +21,8 @@ const ColorPicker = (() => {
     const data   = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
     const pixels = [];
     const step   = Math.max(1, Math.floor(data.length / (3000 * 4)));
+    const wm1    = (canvas.width  - 1) || 1;
+    const hm1    = (canvas.height - 1) || 1;
 
     for (let i = 0; i < data.length; i += 4 * step) {
       const a = data[i + 3];
@@ -27,12 +31,15 @@ const ColorPicker = (() => {
       // 거의 흰색/검정 제외 (사진 테두리 noise 방지)
       if (r > 245 && g > 245 && b > 245) continue;
       if (r < 10  && g < 10  && b < 10)  continue;
-      pixels.push([r, g, b]);
+      const idx = i / 4;
+      const nx  = (idx % canvas.width)           / wm1;
+      const ny  = Math.floor(idx / canvas.width) / hm1;
+      pixels.push([r, g, b, nx, ny]);
     }
     return pixels;
   }
 
-  /* ── 색상 거리 ───────────────────────────────────────────── */
+  /* ── 색상 거리 (RGB 3채널만) ─────────────────────────────── */
   function dist2(a, b) {
     return (a[0]-b[0])**2 + (a[1]-b[1])**2 + (a[2]-b[2])**2;
   }
@@ -56,7 +63,11 @@ const ColorPicker = (() => {
   /* ── k-means 클러스터링 ──────────────────────────────────── */
   function kMeans(pixels, k = 5, maxIter = 25) {
     if (pixels.length <= k) {
-      return pixels.map(color => ({ color, weight: 1 / pixels.length }));
+      return pixels.map(p => ({
+        color:  [p[0], p[1], p[2]],
+        pos:    [p[3], p[4]],
+        weight: 1 / pixels.length,
+      }));
     }
 
     let centroids   = initCentroids(pixels, k);
@@ -76,7 +87,7 @@ const ColorPicker = (() => {
       }
       if (!moved) break;
 
-      // 중심 갱신
+      // 중심 갱신 (RGB만 — 위치는 수렴 후 별도 계산)
       const sums   = Array.from({ length: k }, () => [0, 0, 0]);
       const counts = new Int32Array(k);
       for (let i = 0; i < pixels.length; i++) {
@@ -88,7 +99,11 @@ const ColorPicker = (() => {
       }
       centroids = sums.map((s, c) =>
         counts[c] > 0
-          ? [Math.round(s[0]/counts[c]), Math.round(s[1]/counts[c]), Math.round(s[2]/counts[c])]
+          ? [
+              Math.round(s[0]/counts[c]),
+              Math.round(s[1]/counts[c]),
+              Math.round(s[2]/counts[c]),
+            ]
           : centroids[c]
       );
     }
@@ -97,7 +112,22 @@ const ColorPicker = (() => {
     for (let i = 0; i < pixels.length; i++) counts[assignments[i]]++;
 
     return centroids
-      .map((color, i) => ({ color, weight: counts[i] / pixels.length }))
+      .map((ct, c) => {
+        // 평균 위치(centroid) 대신, 클러스터 내에서 색상이 centroid에
+        // 가장 가까운 실제 픽셀의 위치를 사용 → 해당 색이 실제로 존재하는 곳을 가리킴
+        let bestPos = [ct[3] ?? 0.5, ct[4] ?? 0.5];
+        let bestDist = Infinity;
+        for (let j = 0; j < pixels.length; j++) {
+          if (assignments[j] !== c) continue;
+          const d = dist2(pixels[j], ct);
+          if (d < bestDist) { bestDist = d; bestPos = [pixels[j][3], pixels[j][4]]; }
+        }
+        return {
+          color:  [ct[0], ct[1], ct[2]],
+          pos:    bestPos,
+          weight: counts[c] / pixels.length,
+        };
+      })
       .sort((a, b) => b.weight - a.weight);
   }
 
@@ -133,16 +163,18 @@ const ColorPicker = (() => {
     /**
      * @param {HTMLImageElement} img - 완전히 로드된 img 엘리먼트
      * @param {number} k - 색상 개수 (기본 5)
-     * @returns {{ hex, rgb, weight, lum, hsl }[]}
+     * @returns {{ hex, rgb, weight, pos, lum, hsl }[]}
+     *   pos: [nx, ny] — 이미지 내 정규화된 위치 (0~1)
      */
     extract(img, k = 5) {
       const pixels = samplePixels(img);
       if (!pixels.length) return [];
       const clusters = kMeans(pixels, k);
-      return clusters.map(({ color, weight }) => ({
+      return clusters.map(({ color, weight, pos }) => ({
         hex:    toHex(color),
         rgb:    color,
         weight,
+        pos,
         lum:    luminance(color),
         hsl:    toHsl(color),
       }));
