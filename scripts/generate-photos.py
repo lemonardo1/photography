@@ -257,6 +257,86 @@ def scan_photos(src_dir: Path, existing: dict) -> list:
 
     return photos
 
+# ── 색상 흐름 정렬 ──────────────────────────────────────────────────────────
+
+def _linearize(c: float) -> float:
+    c /= 255.0
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+def rgb_to_lab(r: float, g: float, b: float) -> tuple:
+    """sRGB → CIE L*a*b* (D65)"""
+    rl, gl, bl = _linearize(r), _linearize(g), _linearize(b)
+    X = rl * 0.4124 + gl * 0.3576 + bl * 0.1805
+    Y = rl * 0.2126 + gl * 0.7152 + bl * 0.0722
+    Z = rl * 0.0193 + gl * 0.1192 + bl * 0.9505
+    def f(t):
+        return t ** (1/3) if t > (6/29)**3 else t / (3 * (6/29)**2) + 4/29
+    L  = 116 * f(Y / 1.0000) - 16
+    a  = 500 * (f(X / 0.9505) - f(Y / 1.0000))
+    bv = 200 * (f(Y / 1.0000) - f(Z / 1.0890))
+    return (L, a, bv)
+
+def dominant_lab(img_path: Path) -> tuple:
+    """이미지의 대표 색상을 Lab으로 반환. 극단 픽셀(흰/검)은 제외."""
+    try:
+        from PIL import Image
+        img = Image.open(img_path).convert('RGB')
+        img.thumbnail((120, 120))
+        pixels   = list(img.getdata())
+        filtered = [(r, g, b) for r, g, b in pixels
+                    if not (r > 245 and g > 245 and b > 245)
+                    and not (r < 10  and g < 10  and b < 10)]
+        if not filtered:
+            filtered = pixels
+        n  = len(filtered)
+        ar = sum(p[0] for p in filtered) / n
+        ag = sum(p[1] for p in filtered) / n
+        ab = sum(p[2] for p in filtered) / n
+        return rgb_to_lab(ar, ag, ab)
+    except Exception as e:
+        print(f'    색상 추출 실패 ({img_path.name}): {e}')
+        return (50.0, 0.0, 0.0)   # 중간 회색 fallback
+
+def sort_by_color_flow(photos: list, src_dir: Path) -> list:
+    """Greedy nearest-neighbor TSP in Lab space — 색이 비슷한 사진끼리 이웃."""
+    if len(photos) <= 2:
+        return photos
+
+    print('  색상 분석 중…')
+    labs = []
+    for p in photos:
+        img_path = src_dir / Path(p['src']).name
+        lab = dominant_lab(img_path)
+        labs.append(lab)
+        print(f'    {Path(p["src"]).name:<30} Lab({lab[0]:5.1f}, {lab[1]:5.1f}, {lab[2]:5.1f})')
+
+    n       = len(photos)
+    visited = [False] * n
+    # 가장 밝은 사진을 시작점으로 (L이 가장 큰 것)
+    start   = max(range(n), key=lambda i: labs[i][0])
+    order   = [start]
+    visited[start] = True
+
+    for _ in range(n - 1):
+        cur  = order[-1]
+        cL, ca, cb = labs[cur]
+        best, best_d = -1, float('inf')
+        for j in range(n):
+            if visited[j]:
+                continue
+            dL = cL - labs[j][0]
+            da = ca - labs[j][1]
+            db = cb - labs[j][2]
+            d  = dL*dL + da*da + db*db
+            if d < best_d:
+                best_d, best = d, j
+        order.append(best)
+        visited[best] = True
+
+    print(f'  색상 흐름 정렬 완료 ({n}장)')
+    return [photos[i] for i in order]
+
+
 def write_photos_js(photos: list, out_path: Path):
     lines = [
         '/**',
@@ -268,6 +348,7 @@ def write_photos_js(photos: list, out_path: Path):
         ' *',
         ' * category: "landscape" | "portrait" | "street" | "nature"',
         ' * aspect:   "landscape" | "portrait" | "square"',
+        ' * 정렬:     색상 흐름 (Lab nearest-neighbor)',
         ' */',
         '',
         'window.PHOTOS = [',
@@ -297,6 +378,8 @@ def main():
     parser.add_argument('--src',  type=Path, default=DEFAULT_SRC, help='스캔 디렉토리')
     parser.add_argument('--out',  type=Path, default=DEFAULT_OUT, help='출력 파일')
     parser.add_argument('--keep', action='store_true', help='기존 title/category 유지')
+    parser.add_argument('--sort', choices=['color', 'mtime'], default='color',
+                        help='정렬 기준: color=색상 흐름(기본), mtime=파일 수정 시간')
     args = parser.parse_args()
 
     if not args.src.exists():
@@ -307,6 +390,8 @@ def main():
     existing = load_existing(args.out) if args.keep else {}
     photos   = scan_photos(args.src, existing)
     if photos:
+        if args.sort == 'color':
+            photos = sort_by_color_flow(photos, args.src)
         write_photos_js(photos, args.out)
         print(f'총 {len(photos)}개 사진 처리 완료.')
 

@@ -119,6 +119,7 @@ ESC / 닫기 → Gallery 복귀 (필터 상태 유지)
 | **라이트박스** | 전체화면 이미지, 키보드(← → Esc) · 터치 스와이프 지원 |
 | **EXIF 표시** | 카메라·렌즈·조리개·셔터·ISO·날짜 자동 파싱 |
 | **색상 팔레트** | k-means++ 5색 추출, 이미지 내 원본 좌표 기반 fly-in/fly-out 애니메이션 |
+| **색상 흐름 정렬** | 빌드 타임에 Lab nearest-neighbor TSP로 색이 자연스럽게 이어지는 순서로 배열 |
 | **반응형** | `clamp()` 유동 타이포그래피, 모바일·태블릿·데스크탑 대응 |
 
 ---
@@ -147,10 +148,12 @@ JPG/PNG/HEIC → WebP 변환 + 최대 2400px 리사이즈. 원본은 `photos/ori
 
 ```bash
 python3 scripts/generate-photos.py
-# --keep: 기존 title/category 수동 설정 유지
+# --keep         기존 title/category 수동 설정 유지
+# --sort color   색상 흐름 정렬 (기본값)
+# --sort mtime   파일 수정 시간 정렬
 ```
 
-`photos/`를 스캔해 EXIF를 읽고 `js/photos.js`를 재생성. 실행 후 `title`과 `category`를 필요에 따라 수동 편집.
+`photos/`를 스캔해 EXIF를 읽고 `js/photos.js`를 재생성. 기본적으로 **색상 흐름(color flow)** 순서로 정렬됨 — Pillow로 각 이미지의 대표 색상을 추출하고 CIE Lab 공간에서 nearest-neighbor TSP로 색이 자연스럽게 이어지도록 배열. 실행 후 `title`과 `category`를 필요에 따라 수동 편집.
 
 ### 4. 배포
 
@@ -166,4 +169,5 @@ wrangler pages deploy . --project-name photography
 |------|------|------|
 | `exiftool` | EXIF 메타데이터 읽기 | `brew install exiftool` |
 | `cwebp` | WebP 변환 (fallback: Pillow) | `brew install webp` |
+| `Pillow` | 색상 흐름 정렬용 이미지 분석 | `pip install Pillow` |
 | `wrangler` | Cloudflare Pages 배포 | `npm install -g wrangler` |
