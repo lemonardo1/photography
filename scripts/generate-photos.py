@@ -106,21 +106,13 @@ def friendly_model(raw: str) -> str:
 
 def build_info(exif: dict) -> str:
     parts = []
-    model = friendly_model(exif.get('Model', ''))
-    lens  = exif.get('LensModel', '')
-    focal = exif.get('FocalLength', '')
-    ap    = exif.get('Aperture', '')
-    ss    = fmt_shutter(exif.get('ExposureTime', ''))
-    iso   = exif.get('ISO', '')
+    ap  = exif.get('Aperture', '')
+    ss  = fmt_shutter(exif.get('ExposureTime', ''))
+    iso = exif.get('ISO', '')
 
-    if model: parts.append(model)
-    if lens:  parts.append(str(lens))
-    if focal:
-        focal_str = str(focal)
-        parts.append(focal_str if 'mm' in focal_str else f'{focal_str}mm')
-    if ap:    parts.append(f'f/{ap}')
-    if ss:    parts.append(str(ss))
-    if iso:   parts.append(f'ISO {iso}')
+    if ap:  parts.append(f'f/{ap}')
+    if ss:  parts.append(str(ss))
+    if iso: parts.append(f'ISO {iso}')
 
     return ' · '.join(parts)
 
@@ -170,7 +162,7 @@ def scan_photos(src_dir: Path, existing: dict) -> list:
         print('  사진 파일이 없습니다.')
         return []
 
-    # exiftool 일괄 호출
+    # exiftool 일괄 호출 (WebP)
     paths = [str(f) for f in web_files]
     result = subprocess.run(
         ['exiftool', '-json', '-q',
@@ -187,6 +179,50 @@ def scan_photos(src_dir: Path, existing: dict) -> list:
         exif_list = []
 
     exif_map = {Path(e['SourceFile']).name: e for e in exif_list}
+
+    # originals/ 폴백 — WebP에 EXIF 없는 경우 원본에서 보완
+    originals_dir = src_dir / 'originals'
+    if originals_dir.exists():
+        orig_exts = {'.jpg', '.jpeg', '.png', '.heic'}
+        orig_files = [f for f in originals_dir.iterdir()
+                      if f.suffix.lower() in orig_exts]
+        if orig_files:
+            orig_result = subprocess.run(
+                ['exiftool', '-json', '-q',
+                 '-Make', '-Model', '-LensModel',
+                 '-FocalLength', '-Aperture', '-ExposureTime', '-ISO',
+                 '-DateTimeOriginal',
+                 *[str(f) for f in orig_files]],
+                capture_output=True, text=True
+            )
+            try:
+                orig_list = json.loads(orig_result.stdout)
+            except json.JSONDecodeError:
+                orig_list = []
+            # stem 기준으로 매핑 (DSC07025.jpg → DSC07025.webp)
+            orig_exif_map = {Path(e['SourceFile']).stem: e for e in orig_list}
+            for webp_name, exif in exif_map.items():
+                stem = Path(webp_name).stem
+                if not exif.get('Aperture') and stem in orig_exif_map:
+                    orig = orig_exif_map[stem]
+                    for key in ('Aperture', 'ExposureTime', 'ISO',
+                                'Model', 'LensModel', 'FocalLength',
+                                'DateTimeOriginal'):
+                        if orig.get(key):
+                            exif[key] = orig[key]
+            # WebP에 아예 없던 파일도 originals로 채우기
+            for f in web_files:
+                if f.name not in exif_map:
+                    continue
+                stem = f.stem
+                if not exif_map[f.name].get('Aperture') and stem in orig_exif_map:
+                    orig = orig_exif_map[stem]
+                    for key in ('Aperture', 'ExposureTime', 'ISO',
+                                'Model', 'LensModel', 'FocalLength',
+                                'DateTimeOriginal',
+                                'ImageWidth', 'ImageHeight'):
+                        if orig.get(key):
+                            exif_map[f.name][key] = orig[key]
 
     photos = []
     for f in web_files:

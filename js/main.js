@@ -382,13 +382,11 @@
     lbImg.alt = photo.title;
 
     lbTitle.textContent = photo.title;
-    // info + date 조합
-    const infoParts = [photo.info, photo.date].filter(Boolean);
-    lbInfo.textContent = infoParts.join('  ·  ');
+    lbInfo.textContent = photo.info || '';
 
     // Counter: position within filtered set
     const pos = getFilteredPhotoPosition(globalIndex);
-    lbCounter.textContent = `${pos} / ${filteredPhotos.length}`;
+    lbCounter.textContent = `${pos}`;
 
   }
 
