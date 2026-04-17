@@ -126,16 +126,31 @@ ESC / 닫기 → Gallery 복귀 (필터 상태 유지)
 
 ## 사진 추가 워크플로
 
-### 1. 가져오기
+### 원스텝 (권장)
 
 ```bash
-# 원본 파일을 temp/ 에 복사 후 실행
+# 사진을 temp/ 에 넣은 뒤 한 번만 실행
+bash scripts/publish.sh
+```
+
+`temp/ → WebP 변환 → photos.js 재생성 → git commit → 배포 → temp/ 비움` 을 순서대로 처리합니다.
+
+```bash
+bash scripts/publish.sh --no-deploy   # 배포 제외 (로컬 확인용)
+bash scripts/publish.sh --skip-temp   # temp/ import 건너뜀 (photos/ 에 직접 넣은 경우)
+```
+
+### 단계별 (수동)
+
+#### 1. 가져오기
+
+```bash
 python3 scripts/import-photos.py
 ```
 
 `temp/` → `photos/` 복사. 10MB 초과 파일 제외, `-2` 쌍(web export 중복) 자동 처리, 파일명 공백 → 언더스코어.
 
-### 2. WebP 최적화
+#### 2. WebP 최적화
 
 ```bash
 python3 scripts/optimize-images.py
@@ -144,7 +159,7 @@ python3 scripts/optimize-images.py
 
 JPG/PNG/HEIC → WebP 변환 + 최대 2400px 리사이즈. 원본은 `photos/originals/`에 보존. `cwebp` 없으면 Pillow 자동 fallback.
 
-### 3. photos.js 생성
+#### 3. photos.js 생성
 
 ```bash
 python3 scripts/generate-photos.py
@@ -153,9 +168,9 @@ python3 scripts/generate-photos.py
 # --sort mtime   파일 수정 시간 정렬
 ```
 
-`photos/`를 스캔해 EXIF를 읽고 `js/photos.js`를 재생성. 기본적으로 **색상 흐름(color flow)** 순서로 정렬됨 — Pillow로 각 이미지의 대표 색상을 추출하고 CIE Lab 공간에서 nearest-neighbor TSP로 색이 자연스럽게 이어지도록 배열. 실행 후 `title`과 `category`를 필요에 따라 수동 편집.
+`photos/`를 스캔해 EXIF를 읽고 `js/photos.js`를 재생성. 기본적으로 **색상 흐름(color flow)** 순서로 정렬됨.
 
-### 4. 배포
+#### 4. 배포
 
 ```bash
 wrangler pages deploy . --project-name photography
