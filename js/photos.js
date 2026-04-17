@@ -1,6 +1,6 @@
 /**
  * photos.js — 자동 생성됨 (generate-photos.py)
- * 생성일시: 2026-04-16 16:48:34
+ * 생성일시: 2026-04-17 13:54:42
  *
  * 수동으로 title, category 를 수정해도
  * --keep 옵션으로 다음 생성 시 유지됩니다.
@@ -224,6 +224,14 @@ window.PHOTOS = [
     title:    'IMG 0002',
     category: 'landscape',
     info:     '',
+    aspect:   'landscape',
+  },
+  {
+    src:      'photos/김대성_자석사진.webp',
+    title:    '김대성 자석사진',
+    category: 'landscape',
+    info:     'f/2.8 · 1/160 · ISO 100',
+    date:     '2023.07.26',
     aspect:   'landscape',
   },
   {
