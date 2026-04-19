@@ -132,14 +132,13 @@
 
   function openLightbox(globalIndex) {
     lightboxIndex = globalIndex;
-    filteredPhotos = window.PHOTOS.filter(p => currentFilter === 'all' || p.category === p.category);
-    // recalc with correct filter
     filteredPhotos = window.PHOTOS.filter(p => currentFilter === 'all' || p.category === currentFilter);
 
     lightbox.classList.add('open');
     lbBackdrop.classList.add('open');
     lightbox.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
+    history.replaceState(null, '', '?photo=' + (globalIndex + 1));
     loadLightboxImage(globalIndex);
   }
 
@@ -153,6 +152,7 @@
     lbPalette.querySelectorAll('.palette-swatch').forEach(s => s.classList.remove('active'));
     clearActiveDots();
     lightboxIndex = -1;
+    history.replaceState(null, '', location.pathname);
   }
 
   /* ── Color Palette ───────────────────────────────────────── */
@@ -403,6 +403,7 @@
     const nextPhoto  = filteredPhotos[nextPos - 1];
     const nextGlobal = window.PHOTOS.indexOf(nextPhoto);
     lightboxIndex = nextGlobal;
+    history.replaceState(null, '', '?photo=' + (nextGlobal + 1));
     loadLightboxImage(nextGlobal);
   }
 
@@ -455,5 +456,11 @@
   /* ── Init ────────────────────────────────────────────────── */
   initHero();
   buildGallery();
+
+  const photoParam = new URLSearchParams(location.search).get('photo');
+  if (photoParam) {
+    const idx = parseInt(photoParam, 10) - 1;
+    if (idx >= 0 && idx < window.PHOTOS.length) openLightbox(idx);
+  }
 
 })();
